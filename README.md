@@ -2,15 +2,17 @@
 
 Small macOS menu bar app and CLI for controlling an LG webOS TV.
 
-The app talks to the TV directly from Swift over the webOS WebSocket API. Pairing stores credentials in a local JSON file. `Pair / Re-pair` can trigger the TV authorization prompt and save or refresh the client key.
+The app talks to the TV directly from Swift over the webOS WebSocket API. Pairing credentials (client key, IP control keycode) are stored in macOS Keychain under the `com.lgtv-control` service. Non-secret config (host, MAC addresses) stays in a JSON file. `Pair / Re-pair` can trigger the TV authorization prompt and save or refresh the client key.
 
 Default config path:
 
 ```sh
-~/.config/lg-webos-c3-pairing.json
+~/.config/lgtv-pairing.json
 ```
 
-The config file contains local device credentials. Keep it out of Git. See `examples/lg-webos-c3-pairing.example.json` for the expected shape.
+Secrets found in the JSON file are automatically migrated to Keychain on first load.
+
+See `examples/lgtv-pairing.example.json` for the expected shape.
 
 Build:
 
@@ -51,7 +53,7 @@ lgtv input switch HDMI_2
 lgtv raw ssap://audio/getVolume --json
 ```
 
-The CLI is a standalone terminal entry point. It reads `LG_TV_CONFIG` first, then `LG_C3_CONFIG`, then the default config file. Individual commands can override it with `--config PATH`. Data commands write machine-readable output to stdout with `--json`; failures write to stderr and exit non-zero.
+The CLI is a standalone terminal entry point. It reads `LG_TV_CONFIG` first, then the default config file. Individual commands can override it with `--config PATH`. Data commands write machine-readable output to stdout with `--json`; failures write to stderr and exit non-zero.
 
 Supported controls:
 
