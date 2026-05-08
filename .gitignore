@@ -1,0 +1,12 @@
+.DS_Store
+.build/
+build/
+*.xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+*.swp
+*.swo
+
+# Local pairing credentials and install artifacts
+lg-webos-c3-pairing.json
+*.local.json
