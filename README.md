@@ -2,64 +2,40 @@
 
 Small macOS menu bar app and CLI for controlling an LG webOS TV.
 
-The app talks to the TV directly from Swift over the webOS WebSocket API. Pairing credentials (client key, IP control keycode) are stored in macOS Keychain under the `com.lgtv-control` service. Non-secret config (host, MAC addresses) stays in a JSON file. `Pair / Re-pair` can trigger the TV authorization prompt and save or refresh the client key.
+The app talks to the TV directly from Swift over the webOS WebSocket API and the LG IP-control TCP protocol. Pairing credentials (client key, IP control keycode) live in macOS Keychain under the `com.lgtv-control` service; non-secret config (host, MAC addresses) stays in a JSON file at `~/.config/lgtv-pairing.json`.
 
-Default config path:
-
-```sh
-~/.config/lgtv-pairing.json
-```
-
-Secrets found in the JSON file are automatically migrated to Keychain on first load.
-
-See `examples/lgtv-pairing.example.json` for the expected shape.
-
-Install via Homebrew:
+## Install
 
 ```sh
-brew install --cask https://raw.githubusercontent.com/li-yifei/lg-tv-control-menubar/main/Casks/lgtv-control.rb
+brew install --cask li-yifei/tap/lgtv-control
 ```
 
-The cask installs the menu bar app and a `lgtv` CLI symlink. The app is self-signed, so the cask removes the quarantine attribute on install. To uninstall:
+This installs the menu bar app to `/Applications` and symlinks a `lgtv` CLI into Homebrew's bin directory. The app is self-signed, so the cask strips the quarantine attribute on install.
+
+To uninstall:
 
 ```sh
 brew uninstall --cask lgtv-control
 ```
 
-Build from source:
+## First run
 
-```sh
-./build.sh
-```
+1. Launch **LG TV Control** from Spotlight or Launchpad.
+2. From the menu bar icon → **Pair / Re-pair**, enter the TV's IP and accept the on-screen prompt on the TV. The client key is saved to Keychain.
+3. (Optional, only needed for service-menu PIN entry) On the TV, navigate to **Settings → All Settings → Network → LG Connect Apps** and copy the 8-character IP control keycode. In the menu bar app open **Settings → IP Control Keycode**, paste it, and save.
 
-For stable Keychain access across rebuilds, generate a local self-signed code signing cert once:
+## Features
 
-```sh
-./scripts/setup-codesign.sh
-```
+- Volume up / down, mute toggle, set volume by slider
+- Safety volume reminder with configurable threshold
+- Power on (Wake-on-LAN with auto-discovered MACs) and power off
+- HDMI input list and switching
+- **Extra → InStart / EZ Adjust**: launch LG service menus and auto-type the 4-digit PIN over IP control
+- App Intents for Shortcuts and Siri (power, volume, mute, input switching)
+- Customizable single-letter menu shortcuts
+- Structured CLI (`lgtv`) with `--json` for scripts and Shortcuts shell actions
 
-Without it, `build.sh` falls back to ad-hoc signing and macOS will re-prompt for Keychain authorization on every rebuild.
-
-Run:
-
-```sh
-open "build/LG TV Control.app"
-```
-
-Install the CLI from Settings:
-
-```sh
-open "build/LG TV Control.app" --args --show-settings
-```
-
-The Settings window can install or uninstall `~/.local/bin/lgtv`. The build also writes a copy to `build/bin/lgtv` for manual installation:
-
-```sh
-mkdir -p ~/.local/bin
-cp build/bin/lgtv ~/.local/bin/lgtv
-```
-
-CLI:
+## CLI
 
 ```sh
 lgtv --help
@@ -73,22 +49,20 @@ lgtv input switch HDMI_2
 lgtv raw ssap://audio/getVolume --json
 ```
 
-The CLI is a standalone terminal entry point. It reads `LG_TV_CONFIG` first, then the default config file. Individual commands can override it with `--config PATH`. Data commands write machine-readable output to stdout with `--json`; failures write to stderr and exit non-zero.
+Reads `LG_TV_CONFIG` first, then `~/.config/lgtv-pairing.json`. Individual commands can override with `--config PATH`. Data commands write JSON to stdout with `--json`; failures go to stderr with non-zero exit.
 
-Supported controls:
+## Build from source
 
-- refresh current volume and mute state
-- volume up
-- volume down
-- mute toggle
-- set volume with a slider
-- power on/off
-- settings window for menu shortcuts and safety volume reminder
-- App Intents for Shortcuts and Siri: power, volume, mute, and input switching
-- structured CLI for third-party calls and Shortcuts shell actions
+```sh
+./build.sh
+```
 
-Release hygiene:
+Produces `build/LG TV Control.app`, `build/bin/lgtv`, and `build/LG-TV-Control.app.zip` (release artifact).
 
-- Keep `build/`, `.build/`, and `.DS_Store` out of Git.
-- Keep pairing JSON files and copied CLI binaries out of Git.
-- Review `git grep` output before publishing.
+For stable Keychain access across rebuilds, generate a local self-signed code signing cert once:
+
+```sh
+./scripts/setup-codesign.sh
+```
+
+Requires `openssl@3` (`brew install openssl@3`). Without the cert, `build.sh` falls back to ad-hoc signing, and macOS will re-prompt for Keychain authorization on every rebuild.
