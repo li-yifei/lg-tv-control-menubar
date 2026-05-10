@@ -11,3 +11,6 @@ DerivedData/
 # Local pairing credentials and install artifacts
 lg-webos-c3-pairing.json
 *.local.json
+
+# OMC orchestrator state
+.omc/

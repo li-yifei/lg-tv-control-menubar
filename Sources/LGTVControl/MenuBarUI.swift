@@ -471,16 +471,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func openInStartMenu() {
-        runCommand(statusText: "Opening InStart...") { try self.controller.sendIPControlKey("instart") }
+        runCommand(statusText: "Opening InStart...") { try self.controller.launchFactoryApp(irKey: "inStart", pin: "0413") }
     }
 
     @objc private func openEZAdjust() {
-        runCommand(statusText: "Opening EZ Adjust...") { try self.controller.sendIPControlKey("ezadjust") }
+        runCommand(statusText: "Opening EZ Adjust...") { try self.controller.launchFactoryApp(irKey: "ezAdjust", pin: "0413") }
     }
 
     @objc private func openSettings() {
         if settingsWindowController == nil {
-            settingsWindowController = SettingsWindowController()
+            settingsWindowController = SettingsWindowController(controller: controller)
         }
         settingsWindowController?.showWindow(nil)
         settingsWindowController?.window?.center()

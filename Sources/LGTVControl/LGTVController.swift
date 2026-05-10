@@ -76,10 +76,44 @@ final class LGTVController {
         }
     }
 
+    func saveIPControlKeycode(_ keycode: String) throws {
+        try store.saveIPControlKeycode(keycode)
+    }
+
+    func clearIPControlKeycode() throws {
+        try store.clearIPControlKeycode()
+    }
+
+    func currentIPControlKeycode() -> String? {
+        store.currentIPControlKeycode()
+    }
+
     func sendIPControlKey(_ key: String) throws {
         let config = try store.loadConfig()
         let client = IPControlClient(host: config.host, keycode: config.ipControlKeycode)
         try client.sendKey(key)
+    }
+
+    func launchFactoryApp(irKey: String, pin: String) throws {
+        try withRegisteredClient { client, _ in
+            _ = try client.request(
+                uri: "ssap://system.launcher/launch",
+                payload: [
+                    "id": "com.webos.app.factorywin",
+                    "params": ["id": "executeFactory", "irKey": irKey],
+                ]
+            )
+        }
+        guard !pin.isEmpty else { return }
+        let config = try store.loadConfig()
+        let ipClient = IPControlClient(host: config.host, keycode: config.ipControlKeycode)
+        try ipClient.connect()
+        defer { ipClient.disconnect() }
+        Thread.sleep(forTimeInterval: 1.8)
+        for digit in pin {
+            try ipClient.sendKey("number\(digit)")
+            Thread.sleep(forTimeInterval: 0.45)
+        }
     }
 
     func volumeUp() throws {

@@ -6,6 +6,7 @@ final class IPControlClient {
     private let host: String
     private let port: Int32
     private let derivedKey: Data?
+    private var persistentFd: Int32 = -1
 
     private static let salt: [UInt8] = [99, 97, 184, 14, 155, 220, 166, 99, 141, 7, 32, 242, 204, 86, 143, 185]
     private static let blockSize = 16
@@ -38,6 +39,18 @@ final class IPControlClient {
         let response = try sendCommand("KEY_ACTION \(key)")
         guard response == "OK" else {
             throw TVControlError.webOS("IP control: \(response)")
+        }
+    }
+
+    func connect() throws {
+        disconnect()
+        persistentFd = try openSocket()
+    }
+
+    func disconnect() {
+        if persistentFd >= 0 {
+            Darwin.close(persistentFd)
+            persistentFd = -1
         }
     }
 
@@ -162,12 +175,11 @@ final class IPControlClient {
         return Data(out.prefix(outLen))
     }
 
-    private func tcpSendReceive(_ data: Data) throws -> Data {
+    private func openSocket() throws -> Int32 {
         let fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
         guard fd >= 0 else {
             throw TVControlError.socket(String(cString: strerror(errno)))
         }
-        defer { Darwin.close(fd) }
 
         var timeout = timeval(tv_sec: 5, tv_usec: 0)
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
@@ -185,7 +197,19 @@ final class IPControlClient {
             }
         }
         guard connectResult == 0 else {
+            Darwin.close(fd)
             throw TVControlError.socket("TCP connect to \(host):\(port) failed.")
+        }
+        return fd
+    }
+
+    private func tcpSendReceive(_ data: Data) throws -> Data {
+        let usePersistent = persistentFd >= 0
+        let fd: Int32 = usePersistent ? persistentFd : try openSocket()
+        defer {
+            if !usePersistent {
+                Darwin.close(fd)
+            }
         }
 
         let sent = data.withUnsafeBytes { ptr in

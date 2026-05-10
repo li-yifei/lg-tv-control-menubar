@@ -14,11 +14,31 @@ Secrets found in the JSON file are automatically migrated to Keychain on first l
 
 See `examples/lgtv-pairing.example.json` for the expected shape.
 
-Build:
+Install via Homebrew:
+
+```sh
+brew install --cask https://raw.githubusercontent.com/li-yifei/lg-tv-control-menubar/main/Casks/lgtv-control.rb
+```
+
+The cask installs the menu bar app and a `lgtv` CLI symlink. The app is self-signed, so the cask removes the quarantine attribute on install. To uninstall:
+
+```sh
+brew uninstall --cask lgtv-control
+```
+
+Build from source:
 
 ```sh
 ./build.sh
 ```
+
+For stable Keychain access across rebuilds, generate a local self-signed code signing cert once:
+
+```sh
+./scripts/setup-codesign.sh
+```
+
+Without it, `build.sh` falls back to ad-hoc signing and macOS will re-prompt for Keychain authorization on every rebuild.
 
 Run:
 

@@ -6,15 +6,30 @@ private enum KeychainHelper {
 
     static func save(account: String, value: String) -> Bool {
         guard let data = value.data(using: .utf8) else { return false }
-        let query: [String: Any] = [
+        let base: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
         ]
-        SecItemDelete(query as CFDictionary)
-        var add = query
+        SecItemDelete(base as CFDictionary)
+        var add = base
         add[kSecValueData as String] = data
-        return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
+        if let access = makeSelfAccess() {
+            add[kSecAttrAccess as String] = access
+        }
+        guard SecItemAdd(add as CFDictionary, nil) == errSecSuccess else { return false }
+        return load(account: account) != nil
+    }
+
+    private static func makeSelfAccess() -> SecAccess? {
+        var trusted: SecTrustedApplication?
+        guard SecTrustedApplicationCreateFromPath(nil, &trusted) == errSecSuccess,
+              let trusted else { return nil }
+        var access: SecAccess?
+        guard SecAccessCreate("LG TV Control" as CFString, [trusted] as CFArray, &access) == errSecSuccess else {
+            return nil
+        }
+        return access
     }
 
     static func load(account: String) -> String? {
@@ -90,12 +105,47 @@ final class PairingStore {
     }
 
     func saveClientKey(_ clientKey: String, host: String) throws {
-        _ = KeychainHelper.save(account: "clientKey", value: clientKey)
+        let savedToKeychain = KeychainHelper.save(account: "clientKey", value: clientKey)
         var raw = (try? loadRawIfExists()) ?? [:]
         raw["host"] = host
-        raw.removeValue(forKey: "clientKey")
+        if savedToKeychain {
+            raw.removeValue(forKey: "clientKey")
+        } else {
+            raw["clientKey"] = clientKey
+        }
         raw["savedAt"] = isoNow()
         try saveRaw(raw)
+    }
+
+    func saveIPControlKeycode(_ keycode: String) throws {
+        let normalized = keycode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard normalized.range(of: "^[A-Z0-9]{8}$", options: .regularExpression) != nil else {
+            throw TVControlError.webOS("IP control keycode must be 8 alphanumeric characters.")
+        }
+        let savedToKeychain = KeychainHelper.save(account: "ipControlKeycode", value: normalized)
+        var raw = (try? loadRawIfExists()) ?? [:]
+        if savedToKeychain {
+            raw.removeValue(forKey: "ipControlKeycode")
+        } else {
+            raw["ipControlKeycode"] = normalized
+        }
+        raw["savedAt"] = isoNow()
+        try saveRaw(raw)
+    }
+
+    func clearIPControlKeycode() throws {
+        KeychainHelper.delete(account: "ipControlKeycode")
+        var raw = (try? loadRawIfExists()) ?? [:]
+        raw.removeValue(forKey: "ipControlKeycode")
+        try saveRaw(raw)
+    }
+
+    func currentIPControlKeycode() -> String? {
+        if let value = KeychainHelper.load(account: "ipControlKeycode") {
+            return value
+        }
+        let raw = (try? loadRawIfExists()) ?? [:]
+        return raw["ipControlKeycode"] as? String
     }
 
     func saveWakeMACs(_ macs: [String]) throws {
@@ -109,13 +159,13 @@ final class PairingStore {
     }
 
     private func migrateSecret(_ key: String, from raw: [String: Any]) {
-        guard let value = raw[key] as? String, !value.isEmpty,
-              KeychainHelper.load(account: key) == nil else { return }
-        if KeychainHelper.save(account: key, value: value) {
-            var updated = raw
-            updated.removeValue(forKey: key)
-            try? saveRaw(updated)
+        guard let value = raw[key] as? String, !value.isEmpty else { return }
+        if KeychainHelper.load(account: key) == nil {
+            _ = KeychainHelper.save(account: key, value: value)
         }
+        var updated = raw
+        updated.removeValue(forKey: key)
+        try? saveRaw(updated)
     }
 
     private func loadRawIfExists() throws -> [String: Any] {

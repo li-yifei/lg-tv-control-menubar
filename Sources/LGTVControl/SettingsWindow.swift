@@ -3,22 +3,26 @@ import Foundation
 
 final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     private let settings = AppSettings.shared
+    private let controller: LGTVController
     private let safeVolumeCheckbox = NSButton(checkboxWithTitle: "Safety volume reminder", target: nil, action: nil)
     private let thresholdField = NSTextField()
     private let thresholdStepper = NSStepper()
+    private let ipKeycodeField = NSTextField()
+    private let ipKeycodeStatusLabel = NSTextField(labelWithString: "")
     private let cliStatusLabel = NSTextField(labelWithString: "")
     private let cliButton = NSButton(title: "", target: nil, action: nil)
     private var shortcutFields: [ShortcutAction: NSTextField] = [:]
 
-    init() {
+    init(controller: LGTVController) {
+        self.controller = controller
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 640),
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 700),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
         window.title = "Settings"
-        window.minSize = NSSize(width: 460, height: 580)
+        window.minSize = NSSize(width: 460, height: 640)
         window.isReleasedWhenClosed = false
         super.init(window: window)
         buildContent()
@@ -77,6 +81,45 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         thresholdStepper.action = #selector(thresholdStepperChanged)
         thresholdRow.addArrangedSubview(thresholdStepper)
         root.addArrangedSubview(thresholdRow)
+
+        root.addArrangedSubview(spacer(height: 10))
+        root.addArrangedSubview(sectionLabel("IP Control Keycode"))
+
+        let keycodeHelp = label("8 chars from TV: Settings → Network → IP Control")
+        keycodeHelp.textColor = .secondaryLabelColor
+        keycodeHelp.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        root.addArrangedSubview(keycodeHelp)
+
+        let keycodeRow = NSStackView()
+        keycodeRow.orientation = .horizontal
+        keycodeRow.alignment = .centerY
+        keycodeRow.spacing = 10
+        keycodeRow.translatesAutoresizingMaskIntoConstraints = false
+        ipKeycodeField.placeholderString = "ABCD1234"
+        ipKeycodeField.target = self
+        ipKeycodeField.action = #selector(saveKeycode)
+        ipKeycodeField.delegate = self
+        ipKeycodeField.translatesAutoresizingMaskIntoConstraints = false
+        ipKeycodeField.widthAnchor.constraint(equalToConstant: 140).isActive = true
+        keycodeRow.addArrangedSubview(ipKeycodeField)
+
+        let saveKeycodeButton = NSButton(title: "Save", target: self, action: #selector(saveKeycode))
+        saveKeycodeButton.bezelStyle = .rounded
+        keycodeRow.addArrangedSubview(saveKeycodeButton)
+
+        let clearKeycodeButton = NSButton(title: "Clear", target: self, action: #selector(clearKeycode))
+        clearKeycodeButton.bezelStyle = .rounded
+        keycodeRow.addArrangedSubview(clearKeycodeButton)
+
+        let keycodeSpacer = NSView()
+        keycodeSpacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        keycodeRow.addArrangedSubview(keycodeSpacer)
+        root.addArrangedSubview(keycodeRow)
+        keycodeRow.widthAnchor.constraint(equalTo: root.widthAnchor).isActive = true
+
+        ipKeycodeStatusLabel.textColor = .secondaryLabelColor
+        ipKeycodeStatusLabel.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        root.addArrangedSubview(ipKeycodeStatusLabel)
 
         root.addArrangedSubview(spacer(height: 10))
         root.addArrangedSubview(sectionLabel("Command Line Tool"))
@@ -188,7 +231,37 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         for action in ShortcutAction.allCases {
             shortcutFields[action]?.stringValue = displayShortcut(settings.shortcut(for: action))
         }
+        refreshIPKeycodeState()
         refreshCLIInstallState()
+    }
+
+    private func refreshIPKeycodeState() {
+        if let keycode = controller.currentIPControlKeycode(), !keycode.isEmpty {
+            ipKeycodeField.stringValue = keycode
+            ipKeycodeStatusLabel.stringValue = "Saved. Used by service menu PIN entry and IP control commands."
+        } else {
+            ipKeycodeField.stringValue = ""
+            ipKeycodeStatusLabel.stringValue = "Not set. Service menu PIN entry will not work."
+        }
+    }
+
+    @objc private func saveKeycode() {
+        let value = ipKeycodeField.stringValue
+        do {
+            try controller.saveIPControlKeycode(value)
+            refreshIPKeycodeState()
+        } catch {
+            showError(error.localizedDescription)
+        }
+    }
+
+    @objc private func clearKeycode() {
+        do {
+            try controller.clearIPControlKeycode()
+            refreshIPKeycodeState()
+        } catch {
+            showError(error.localizedDescription)
+        }
     }
 
     @objc private func safeVolumeChanged() {
