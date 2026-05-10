@@ -1,6 +1,6 @@
 cask "lgtv-control" do
   version "0.5.0"
-  sha256 "PLACEHOLDER_FILLED_AFTER_RELEASE_UPLOAD"
+  sha256 "f82454b9dc767758eeb253694369338fbf7545ac13d31d3217a9b3326eeaebf9"
 
   url "https://github.com/li-yifei/lg-tv-control-menubar/releases/download/v#{version}/LG-TV-Control.app.zip"
   name "LG TV Control"
