@@ -66,3 +66,7 @@ For stable Keychain access across rebuilds, generate a local self-signed code si
 ```
 
 Requires `openssl@3` (`brew install openssl@3`). Without the cert, `build.sh` falls back to ad-hoc signing, and macOS will re-prompt for Keychain authorization on every rebuild.
+
+## License
+
+[MIT](LICENSE). Bundled third-party software (Apple's [swift-argument-parser](https://github.com/apple/swift-argument-parser), Apache 2.0) is acknowledged in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
